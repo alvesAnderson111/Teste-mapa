@@ -64,3 +64,15 @@ canvas.addEventListener('pointerdown',e=>{if(!ready)return;canvas.setPointerCapt
 canvas.addEventListener('pointermove',e=>{if(!fingers.has(e.pointerId))return;const previous=fingers.get(e.pointerId),before=[...fingers.values()];fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});const after=[...fingers.values()];if(after.length===2){const dist=p=>Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),mid=p=>({x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}),a=mid(before),b=mid(after);if(dist(before)>0)zoom(dist(after)/dist(before),a.x,a.y);ox+=b.x-a.x;oy+=b.y-a.y;schedule();return;}if(gesture)return;if(panMode){ox+=e.clientX-previous.x;oy+=e.clientY-previous.y;schedule();}else if(selection){selection.b=clamp(unproject(e.clientX,e.clientY));update();}});
 for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,e=>{fingers.delete(e.pointerId);if(name==='pointercancel'){selection=null;update();}if(!fingers.size)gesture=false;});canvas.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(-e.deltaY*.001),e.clientX,e.clientY);},{passive:false});window.addEventListener('resize',resize);window.addEventListener('keydown',e=>{if(e.key==='Escape'){selection=null;update();}});resize();
 fetch('models.json').then(r=>{if(!r.ok)throw Error('Modelos indisponíveis');return r.json();}).then(data=>{models=data;for(const [key,t] of Object.entries(Rules.types)){const names=Object.keys(models).filter(n=>n.startsWith(t.prefix)).sort();if(names.length!==3)throw Error('Categoria incompleta');sprites[key]=names.map(n=>makeSprite(models[n],t.color));}ready=true;document.querySelectorAll('.category').forEach(b=>b.disabled=false);update();}).catch(e=>{$('hint').textContent='Não foi possível carregar os modelos. Atualize a página para tentar novamente.';notify(e.message);});
+
+$('restart').onclick=()=>{$('restartError').textContent='';$('restartDialog').showModal();};
+$('restartCancel').onclick=()=>$('restartDialog').close();
+$('restartConfirm').onclick=()=>{
+ const fresh=Rules.fresh();
+ try{localStorage.setItem(KEY,JSON.stringify(fresh));}
+ catch(e){$('restartError').textContent='Não foi possível salvar o reinício. Sua cidade foi mantida. Verifique se o navegador permite salvar dados.';return;}
+ state=fresh;selection=null;panMode=false;fingers.clear();gesture=false;
+ $('pan').classList.remove('active');$('pan').setAttribute('aria-pressed','false');
+ tile=72;center();update();$('restartDialog').close();
+ notify('Cidade reiniciada. Você tem $ 100k para começar.');
+};
