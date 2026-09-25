@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),R=require('./engine.js'),p=(x,y)=>({x,y});
+let s=R.fresh(),road=[p(5,5),p(8,6),p(12,5),p(16,8)];let q=R.quoteInfra(s,'road',road);assert(!q.error,q.error);assert(q.points.length>road.length);assert(q.total>0);let built=R.buildInfra(s,'road',road);assert(built);assert.equal(s.money,100000-built.total);assert.equal(s.roads.length,1);
+let crossing=[p(9,2),p(9,10)];q=R.quoteInfra(s,'avenue',crossing);assert(!q.error,q.error);assert(q.connections.length===1);assert(R.buildInfra(s,'avenue',crossing));
+let overlap=R.quote(s,'res',p(9,5),p(9,5));assert.equal(overlap.cells.length,0);
+let park=[p(18,18),p(23,18),p(23,23),p(18,23),p(18,18)];q=R.quoteInfra(s,'park',park);assert(!q.error,q.error);assert(q.area>15);assert(q.maintenance>0);assert(R.buildInfra(s,'park',park));assert.equal(R.quote(s,'res',p(20,20),p(20,20)).cells.length,0);assert(R.quoteInfra(s,'road',[p(17,20),p(25,20)]).error);
+let restored=R.restore(JSON.parse(JSON.stringify(s)));assert(restored,'restore infrastructure');let before=s.money;R.advanceClock(s,60000);assert(s.money<before);assert(R.restore(JSON.parse(JSON.stringify(s))),'restore after upkeep');
+const legacy={version:2,money:94925,buildings:[{x:1.137,y:2.238,type:'res',variant:1}],clock:{month:4,elapsed:12000,speed:2}};restored=R.restore(legacy);assert(restored);assert.equal(restored.buildings[0].x,1.137);assert.equal(restored.clock.month,4);
+s=R.fresh();R.build(s,'res',p(6,6),p(6,6));assert(R.quoteInfra(s,'road',[p(3,6),p(9,6)]).error);assert.equal(R.buildInfra(s,'road',[p(3,6),p(9,6)]),false);
+assert(R.quoteInfra(s,'road',[p(-1,2),p(8,2)]).error);assert(R.quoteInfra(s,'park',[p(10,10),p(15,15),p(10,15),p(15,10)]).error);
+s=R.fresh();R.buildInfra(s,'road',[p(4,4),p(18,8)]);const aligned=R.alignToRoad(s,{x:9,y:7});assert(aligned.angle);q=R.quote(s,'res',p(10,8),p(10,8),true);assert(q.cells.length===1);assert(R.build(s,'res',p(10,8),p(10,8),()=>0,true));assert(R.restore(JSON.parse(JSON.stringify(s))));
+s.money=0;const snapshot=JSON.stringify(s);assert.equal(R.buildInfra(s,'road',[p(15,15),p(20,20)]),false);assert.equal(JSON.stringify(s),snapshot);
+console.log('PASS: smooth curves, connected crossings, bidirectional collisions, parks, bounds, self crossing, budget atomicity, aligned buildings, monthly upkeep and save migration.');
