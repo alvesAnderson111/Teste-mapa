@@ -2,6 +2,9 @@
 const $=id=>document.getElementById(id),canvas=$('world'),ctx=canvas.getContext('2d'),KEY='quadra-city-v1';
 let state=Rules.fresh(),type='res',selection=null,panMode=false,ready=false,models={},sprites={},width=0,height=0,tile=72,ox=0,oy=0,frame=0;
 let noticeTimer;
+let alignBuildings=false;const rotatedSprites=new Map();
+const infrastructure=()=>Boolean(Rules.infraTypes[type]);
+const buildingQuote=()=>Rules.quote(state,type,selection.a,selection.b,alignBuildings);
 try{const saved=localStorage.getItem(KEY);if(saved){const restored=Rules.restore(JSON.parse(saved));if(restored)state=restored;else notify('O salvamento não pôde ser recuperado. Uma nova cidade foi aberta.');}}catch(e){notify('Salvamento indisponível. A cidade ficará apenas nesta sessão.');}
 function short(n){return '$ '+(n>=1000?new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(n/1000)+'k':new Intl.NumberFormat('pt-BR').format(n));}
 function exact(n){return '$ '+new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);}
@@ -15,8 +18,9 @@ function polygon(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>i?ctx
 function lot(x,y,fill,stroke){polygon([project(x,y),project(x+1,y),project(x+1,y+1),project(x,y+1)],fill,stroke);}
 function schedule(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;draw();});}
 function draw(){ctx.clearRect(0,0,width,height);ctx.fillStyle='#eef1eb';ctx.fillRect(0,0,width,height);const N=Rules.size;polygon([project(0,0),project(N,0),project(N,N),project(0,N)],'#fffefb','#cdd6c8');
-if(selection){
- const q=Rules.quote(state,type,selection.a,selection.b),c=Rules.types[type].color;
+drawInfrastructure();
+if(selection&&!infrastructure()){
+ const q=buildingQuote(),c=Rules.types[type].color;
  if(Math.hypot(selection.a.x-selection.b.x,selection.a.y-selection.b.y)>.15){
   const left=Math.min(selection.a.x,selection.b.x),top=Math.min(selection.a.y,selection.b.y),right=Math.max(selection.a.x,selection.b.x),bottom=Math.max(selection.a.y,selection.b.y);
   polygon([project(left,top),project(right,top),project(right,bottom),project(left,bottom)],c+'15',c+'88');
@@ -24,9 +28,9 @@ if(selection){
  for(const p of q.cells)lot(p.x,p.y,c+'28',c+'88');
  for(const p of q.rejected)lot(p.x,p.y,'#ce6a6330','#c66c65');
 }
-const all=state.buildings.map(b=>({...b,ghost:false}));if(selection){const q=Rules.quote(state,type,selection.a,selection.b);for(const c of q.cells.slice(0,120))all.push({...c,type,variant:Math.abs(Math.round(c.x*700+c.y*1300))%3,ghost:true});}
-all.sort((a,b)=>(a.x+a.y)-(b.x+b.y)||a.x-b.x);for(const b of all){const p=project(b.x+.5,b.y+.5),img=sprites[b.type]?.[b.variant];if(!img||p.x< -tile||p.x>width+tile||p.y< -tile||p.y>height+tile*1.4)continue;ctx.globalAlpha=b.ghost?.43:1;ctx.drawImage(img,p.x-tile/2,p.y-tile, tile,tile*1.3);}ctx.globalAlpha=1;}
-function makeSprite(model,categoryColor){const xs=model.v.map(p=>p[0]),ys=model.v.map(p=>p[1]),zs=model.v.map(p=>p[2]),mx=(Math.max(...xs)+Math.min(...xs))/2,my=(Math.max(...ys)+Math.min(...ys))/2,mz=Math.min(...zs),scale=.88/Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));const v=model.v.map(p=>[(p[0]-mx)*scale,-(p[1]-my)*scale,(p[2]-mz)*scale]);const img=document.createElement('canvas');img.width=400;img.height=520;const c=img.getContext('2d');c.scale(2,2);
+const all=state.buildings.map(b=>({...b,ghost:false}));if(selection&&!infrastructure()){const q=buildingQuote();for(const c of q.cells.slice(0,120))all.push({...c,type,variant:Math.abs(Math.round(c.x*700+c.y*1300))%3,ghost:true});}
+all.sort((a,b)=>(a.x+a.y)-(b.x+b.y)||a.x-b.x);for(const b of all){const p=project(b.x+.5,b.y+.5),img=buildingSprite(b);if(!img||p.x< -tile||p.x>width+tile||p.y< -tile||p.y>height+tile*1.4)continue;ctx.globalAlpha=b.ghost?.43:1;ctx.drawImage(img,p.x-tile/2,p.y-tile, tile,tile*1.3);}ctx.globalAlpha=1;}
+function makeSprite(model,categoryColor,angle=0){const xs=model.v.map(p=>p[0]),ys=model.v.map(p=>p[1]),zs=model.v.map(p=>p[2]),mx=(Math.max(...xs)+Math.min(...xs))/2,my=(Math.max(...ys)+Math.min(...ys))/2,mz=Math.min(...zs),scale=.88/Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));const v=model.v.map(p=>{const x=(p[0]-mx)*scale,y=-(p[1]-my)*scale;return [x*Math.cos(angle)-y*Math.sin(angle),x*Math.sin(angle)+y*Math.cos(angle),(p[2]-mz)*scale];});const img=document.createElement('canvas');img.width=400;img.height=520;const c=img.getContext('2d');c.scale(2,2);
 const faces=model.f.map(f=>{const p=f.slice(0,3).map(i=>v[i]);return {p,color:f[3],depth:p.reduce((n,p)=>n+p[0]+p[1]+p[2]*1.4,0)/3};}).sort((a,b)=>a.depth-b.depth);
 
 // Keep flat category colors while separating the slab, roof and facade details.
@@ -51,17 +55,17 @@ for(const f of faces){
  c.closePath();c.fillStyle=`rgb(${rgb.join(',')})`;c.fill();
 }
 return img;}
-function update(){const q=selection?Rules.quote(state,type,selection.a,selection.b):null;$('balance').textContent=short(state.money);$('balance').title=exact(state.money);$('count').textContent=state.buildings.length+' construções';$('quote').hidden=!selection;
+function update(){if(infrastructure()){updateInfrastructure();return;}const q=selection?buildingQuote():null;$('balance').textContent=short(state.money);$('balance').title=exact(state.money);$('count').textContent=state.buildings.length+' construções';$('quote').hidden=!selection;
 if(q){$('summary').textContent=q.cells.length+' '+(type==='res'?'residências':type==='com'?'comércios':'indústrias');$('total').textContent=short(q.total);$('total').title=exact(q.total);$('breakdown').textContent=`Construções ${exact(q.base)} + terreno (${Rules.types[type].tax*100}%) ${exact(q.tax)}. `+(q.blocked?`${q.blocked} posição(ões) com sobreposição ignorada(s). `:'')+(q.total>state.money?'Saldo insuficiente: selecione uma área menor.':!q.cells.length?'Sem espaço livre para construir aqui.':`Saldo após construir: ${short(state.money-q.total)}.`);$('breakdown').classList.toggle('error',q.total>state.money||!q.cells.length);$('confirm').disabled=!ready||!q.cells.length||q.total>state.money;$('confirm').textContent='Construir · '+short(q.total);}
 $('hint').textContent=panMode?'Arraste para mover · pinça para aproximar':'Toque para posicionar · arraste para preencher uma área';schedule();}
 function center(){ox=width/2;oy=height*.43-Rules.size*tile/4;schedule();}
 function resize(){width=innerWidth;height=innerHeight;const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);center();}
 function zoom(f,x=width/2,y=height*.45){const old=tile;tile=Math.max(24,Math.min(160,tile*f));ox=x-(x-ox)*tile/old;oy=y-(y-oy)*tile/old;schedule();}
 for(const b of document.querySelectorAll('.category'))b.onclick=()=>{type=b.dataset.type;panMode=false;selection=null;for(const other of document.querySelectorAll('.category'))other.setAttribute('aria-pressed',String(other===b));$('pan').classList.remove('active');$('pan').setAttribute('aria-pressed','false');update();};
-$('pan').onclick=()=>{panMode=!panMode;selection=null;$('pan').classList.toggle('active',panMode);$('pan').setAttribute('aria-pressed',String(panMode));update();};$('plus').onclick=()=>zoom(1.2);$('minus').onclick=()=>zoom(1/1.2);$('center').onclick=center;$('cancel').onclick=()=>{selection=null;update();};$('confirm').onclick=()=>{if(!ready||!selection)return;const q=Rules.build(state,type,selection.a,selection.b);if(!q){update();return;}selection=null;save();notify(`${q.cells.length} construção(ões) adicionada(s). Custo: ${exact(q.total)}.`);update();};
+$('pan').onclick=()=>{panMode=!panMode;selection=null;$('pan').classList.toggle('active',panMode);$('pan').setAttribute('aria-pressed',String(panMode));update();};$('plus').onclick=()=>zoom(1.2);$('minus').onclick=()=>zoom(1/1.2);$('center').onclick=center;$('cancel').onclick=()=>{selection=null;update();};$('confirm').onclick=()=>{if(!ready||!selection)return;if(infrastructure()){const q=Rules.buildInfra(state,type,selection.path);if(!q){update();return;}selection=null;save();notify(Rules.infraTypes[type].label+' construído: '+exact(q.total));update();return;}const q=Rules.build(state,type,selection.a,selection.b,Math.random,alignBuildings);if(!q){update();return;}selection=null;save();notify(`${q.cells.length} construção(ões) adicionada(s). Custo: ${exact(q.total)}.`);update();};
 const fingers=new Map();let gesture=false;
-canvas.addEventListener('pointerdown',e=>{if(!ready)return;canvas.setPointerCapture(e.pointerId);fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(fingers.size>1){gesture=true;selection=null;update();return;}gesture=false;if(!panMode){const p=unproject(e.clientX,e.clientY);selection=inside(p)?{a:p,b:p}:null;update();}});
-canvas.addEventListener('pointermove',e=>{if(!fingers.has(e.pointerId))return;const previous=fingers.get(e.pointerId),before=[...fingers.values()];fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});const after=[...fingers.values()];if(after.length===2){const dist=p=>Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),mid=p=>({x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}),a=mid(before),b=mid(after);if(dist(before)>0)zoom(dist(after)/dist(before),a.x,a.y);ox+=b.x-a.x;oy+=b.y-a.y;schedule();return;}if(gesture)return;if(panMode){ox+=e.clientX-previous.x;oy+=e.clientY-previous.y;schedule();}else if(selection){selection.b=clamp(unproject(e.clientX,e.clientY));update();}});
+canvas.addEventListener('pointerdown',e=>{if(!ready)return;canvas.setPointerCapture(e.pointerId);fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(fingers.size>1){gesture=true;selection=null;update();return;}gesture=false;if(!panMode){const p=unproject(e.clientX,e.clientY);selection=inside(p)?{a:p,b:p,path:[p]}:null;update();}});
+canvas.addEventListener('pointermove',e=>{if(!fingers.has(e.pointerId))return;const previous=fingers.get(e.pointerId),before=[...fingers.values()];fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});const after=[...fingers.values()];if(after.length===2){const dist=p=>Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),mid=p=>({x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}),a=mid(before),b=mid(after);if(dist(before)>0)zoom(dist(after)/dist(before),a.x,a.y);ox+=b.x-a.x;oy+=b.y-a.y;schedule();return;}if(gesture)return;if(panMode){ox+=e.clientX-previous.x;oy+=e.clientY-previous.y;schedule();}else if(selection){selection.b=clamp(unproject(e.clientX,e.clientY));if(infrastructure()){const last=selection.path.at(-1);if(Math.hypot(selection.b.x-last.x,selection.b.y-last.y)>.18)selection.path.push(selection.b);}update();}});
 for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,e=>{fingers.delete(e.pointerId);if(name==='pointercancel'){selection=null;update();}if(!fingers.size)gesture=false;});canvas.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(-e.deltaY*.001),e.clientX,e.clientY);},{passive:false});window.addEventListener('resize',resize);window.addEventListener('keydown',e=>{if(e.key==='Escape'){selection=null;update();}});resize();
 fetch('models.json').then(r=>{if(!r.ok)throw Error('Modelos indisponíveis');return r.json();}).then(data=>{models=data;for(const [key,t] of Object.entries(Rules.types)){const names=Object.keys(models).filter(n=>n.startsWith(t.prefix)).sort();if(names.length!==3)throw Error('Categoria incompleta');sprites[key]=names.map(n=>makeSprite(models[n],t.color));}ready=true;document.querySelectorAll('.category').forEach(b=>b.disabled=false);update();}).catch(e=>{$('hint').textContent='Não foi possível carregar os modelos. Atualize a página para tentar novamente.';notify(e.message);});
 
@@ -92,7 +96,7 @@ function tickClock(){
  const now=performance.now(),delta=now-clockLast;clockLast=now;
  if(document.hidden||!ready||$('restartDialog').open||delta>2000)return;
  const crossed=Rules.advanceClock(state,delta);clockUnsaved+=delta;renderClock();
- if(crossed)notify(monthNames[state.clock.month%12]+' · Ano '+(Math.floor(state.clock.month/12)+1));
+ if(crossed){update();notify(monthNames[state.clock.month%12]+' · manutenção: '+short(state.parks.reduce((n,p)=>n+p.maintenance,0))+(state.upkeepDebt?' · pendência '+short(state.upkeepDebt):''));}
  if(crossed||clockUnsaved>=5000){persistClock();clockUnsaved=0;}
 }
 document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{tickClock();state.clock.speed=Number(b.dataset.speed);renderClock();persistClock();});
@@ -101,3 +105,21 @@ window.addEventListener('pagehide',persistClock);
 const resetCity=$('restartConfirm').onclick;
 $('restartConfirm').onclick=()=>{resetCity();clockLast=performance.now();clockUnsaved=0;renderClock();};
 renderClock();setInterval(tickClock,250);
+function buildingSprite(b){if(!b.angle)return sprites[b.type]?.[b.variant];const key=b.type+':'+b.variant+':'+b.angle.toFixed(4);if(!rotatedSprites.has(key)){const name=Object.keys(models).filter(n=>n.startsWith(Rules.types[b.type].prefix)).sort()[b.variant];if(!name)return null;rotatedSprites.set(key,makeSprite(models[name],Rules.types[b.type].color,b.angle));}return rotatedSprites.get(key);}
+function worldPath(points,closed){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));if(closed)ctx.closePath();}
+function drawInfrastructure(){
+ ctx.save();ctx.transform(tile/2,tile/4,-tile/2,tile/4,ox,oy);ctx.lineJoin='round';ctx.lineCap='round';
+ for(const p of state.parks){worldPath(p.points,true);ctx.fillStyle='#c0d9a6';ctx.fill();ctx.strokeStyle='#94b782';ctx.lineWidth=.09;ctx.stroke();}
+ // Draw all curbs before asphalt, so joined streets have open junctions.
+ for(const r of state.roads){worldPath(r.points,false);ctx.strokeStyle='#c7cbc6';ctx.lineWidth=r.width+.12;ctx.stroke();}
+ for(const r of state.roads){worldPath(r.points,false);ctx.strokeStyle=r.type==='avenue'?'#747e82':'#8a9495';ctx.lineWidth=r.width;ctx.stroke();}
+ for(const r of state.roads.filter(r=>r.type==='avenue')){worldPath(r.points,false);ctx.setLineDash([.28,.2]);ctx.strokeStyle='#e9dfaf';ctx.lineWidth=.025;ctx.stroke();ctx.setLineDash([]);}
+ if(selection&&infrastructure()){const q=Rules.quoteInfra(state,type,selection.path);const invalid=q.error||q.total>state.money;worldPath(q.points,type==='park');if(type==='park'){ctx.fillStyle=invalid?'#c9565655':'#79b56a77';ctx.fill();ctx.strokeStyle=invalid?'#bd5149':'#629554';ctx.lineWidth=.1;ctx.stroke();}else{ctx.strokeStyle=invalid?'#c95858aa':'#638994aa';ctx.lineWidth=q.width||.55;ctx.stroke();}}
+ ctx.restore();
+ // Small deterministic trees and benches remain stable across reloads.
+ for(const park of state.parks){const xs=park.points.map(p=>p.x),ys=park.points.map(p=>p.y);let count=0;for(let y=Math.min(...ys)+.35;y<Math.max(...ys);y+=.9)for(let x=Math.min(...xs)+.35;x<Math.max(...xs);x+=.9){if(count>=55)break;const w={x:x+Math.sin(x*17+y*3)*.15,y:y+Math.cos(y*11+x)*.15};if(!Rules.contains(w,park.points))continue;const pos=project(w.x,w.y);ctx.fillStyle='#64805c';ctx.fillRect(pos.x-1,pos.y-tile*.13,2,tile*.13);ctx.beginPath();ctx.ellipse(pos.x,pos.y-tile*.15,tile*.09,tile*.13,0,0,Math.PI*2);ctx.fillStyle=count%2?'#76a56a':'#63925d';ctx.fill();if(count%6===0){ctx.strokeStyle='#94785b';ctx.lineWidth=Math.max(2,tile*.025);ctx.beginPath();ctx.moveTo(pos.x+tile*.13,pos.y);ctx.lineTo(pos.x+tile*.24,pos.y+tile*.055);ctx.stroke();}count++;}}
+}
+function updateInfrastructure(){const q=selection?Rules.quoteInfra(state,type,selection.path):null;$('balance').textContent=short(state.money);$('balance').title=exact(state.money);$('count').textContent=state.buildings.length+' prédios · '+state.roads.length+' vias · '+state.parks.length+' parques';$('quote').hidden=!q;
+if(q){$('summary').textContent=Rules.infraTypes[type].label+(type==='park'?' · '+(q.area||0).toFixed(1)+' área':' · '+(q.length||0).toFixed(1)+' unidades');$('total').textContent=short(q.total);$('breakdown').textContent=q.error||(q.total>state.money?'Saldo insuficiente.':type==='park'?'Manutenção mensal: '+exact(q.maintenance)+'.':'Conexões com outras vias: '+q.connections.length+'.');$('breakdown').classList.toggle('error',Boolean(q.error)||q.total>state.money);$('confirm').disabled=!ready||!!q.error||!q.total||q.total>state.money;$('confirm').textContent='Construir · '+short(q.total);}
+$('hint').textContent=panMode?'Arraste para mover · pinça para aproximar':type==='park'?'Desenhe o contorno do parque; fechamos a área ao soltar':'Desenhe com o dedo · curvas suavizadas automaticamente';schedule();}
+$('alignRoad').onchange=()=>{alignBuildings=$('alignRoad').checked;update();};
