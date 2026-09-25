@@ -1,6 +1,6 @@
 'use strict';
 const Rules=(()=>{
-const size=32,types={res:{label:'Residência',price:5000,tax:.015,prefix:'casa_',color:'#529b78'},com:{label:'Comércio',price:8000,tax:.025,prefix:'comercio_',color:'#538dbc'},ind:{label:'Indústria',price:12000,tax:.04,prefix:'industrial_',color:'#bb9452'}};
+const size=32,types={res:{label:'Residência',price:5000,tax:.015,prefix:'casa_',color:'#59b877'},com:{label:'Comércio',price:8000,tax:.025,prefix:'comercio_',color:'#529fe0'},ind:{label:'Indústria',price:12000,tax:.04,prefix:'industrial_',color:'#ee9345'}};
 const fresh=()=>({version:1,money:100000,buildings:[]});
 function quote(state,type,a,b){if(!types[type]||!a||!b)return {cells:[],blocked:0,base:0,tax:0,total:0};const occupied=new Set(state.buildings.map(o=>`${o.x},${o.y}`)),cells=[];let blocked=0;
 for(let y=Math.max(0,Math.min(a.y,b.y));y<=Math.min(size-1,Math.max(a.y,b.y));y++)for(let x=Math.max(0,Math.min(a.x,b.x));x<=Math.min(size-1,Math.max(a.x,b.x));x++){if(occupied.has(`${x},${y}`))blocked++;else cells.push({x,y});}
