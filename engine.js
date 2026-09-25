@@ -3,7 +3,7 @@ const Rules=(()=>{
 const size=32,types={res:{label:'Residência',price:5000,tax:.015,prefix:'casa_',color:'#59b877'},com:{label:'Comércio',price:8000,tax:.025,prefix:'comercio_',color:'#529fe0'},ind:{label:'Indústria',price:12000,tax:.04,prefix:'industrial_',color:'#ee9345'}};
 
 const footprint=.94,spacing=1.04,epsilon=1e-8;
-const fresh=()=>({version:2,money:100000,buildings:[]});
+const fresh=()=>({version:2,money:100000,buildings:[],clock:{month:0,elapsed:0,speed:1}});
 const validPoint=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
 const overlaps=(a,b)=>Math.abs(a.x-b.x)<footprint-epsilon&&Math.abs(a.y-b.y)<footprint-epsilon;
 const inBounds=p=>validPoint(p)&&p.x>=0&&p.y>=0&&p.x<=size-1&&p.y<=size-1;
@@ -35,7 +35,12 @@ function restore(data){
   checked.push({x:b.x,y:b.y,type:b.type,variant:b.variant});spent+=types[b.type].price*(1+types[b.type].tax);
  }
  if(Math.round(spent)+data.money!==100000)return null;
- return {version:2,money:data.money,buildings:checked};
+ return {version:2,money:data.money,buildings:checked,clock:normalizeClock(data.clock)};
 }
-return {size,types,footprint,spacing,fresh,quote,build,restore,overlaps};})();
+
+const MONTH_MS=60000;
+function normalizeClock(c){return {month:Number.isSafeInteger(c?.month)&&c.month>=0?c.month:0,elapsed:Number.isFinite(c?.elapsed)&&c.elapsed>=0&&c.elapsed<MONTH_MS?c.elapsed:0,speed:[0,1,2,4].includes(c?.speed)?c.speed:1};}
+function advanceClock(state,realMs){state.clock=normalizeClock(state.clock);if(!Number.isFinite(realMs)||realMs<0)return 0;const total=state.clock.elapsed+realMs*state.clock.speed,months=Math.floor(total/MONTH_MS);state.clock.month+=months;state.clock.elapsed=total%MONTH_MS;return months;}
+
+return {MONTH_MS,normalizeClock,advanceClock,size,types,footprint,spacing,fresh,quote,build,restore,overlaps};})();
 if(typeof module!=='undefined')module.exports=Rules;
