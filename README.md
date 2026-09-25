@@ -1,18 +1,25 @@
 # Mapa Vivo
 
-Primeiro protótipo de um gerador de paisagens aleatórias em vista isométrica.
+Gerador de mundos 3D simplificados para navegador, com WebGL e sem dependências externas.
 
-## O que dá para experimentar
+## Experimentar
 
-- Gerar um novo mapa com uma semente aleatória.
-- Escolher entre surpresa, arquipélago, vale com rio e costa montanhosa.
-- Ajustar a quantidade de água e a altura do relevo.
-- Ver água, areia, grama, floresta, pedra, montanhas e estradas.
+1. Escolha a paisagem, água e relevo.
+2. Toque em **Gerar outro mapa** para aplicar as opções.
+3. Toque em **Entrar no mapa** para explorar o mesmo mundo em tela cheia da página.
 
-## Como funciona
+Arraste para mover a câmera, use dois dedos para zoom ou os botões +/−. ↻ gira a câmera; ⌂ mostra o mundo inteiro. **Gerador** volta sem trocar a semente. No computador, a roda do mouse ajusta o zoom e Escape volta ao gerador.
 
-O protótipo roda no navegador e está todo no arquivo `index.html`; não precisa de instalar nada nem de serviços externos. Cada semente identifica uma combinação de terreno. Esta primeira versão desenha o mapa em estilo isométrico 2.5D no canvas.
+## Escopo
 
-## Estado
+Terreno tridimensional, mar, leito de rio, areia, grama, rochas e árvores de poucos polígonos. A semente permanece ao entrar, voltar e mover a câmera. As opções só são aplicadas ao gerar novamente. Recarregar a página gera um novo mundo; ainda não há salvamento.
 
-Protótipo inicial, ainda sem uma página publicada para visualização. A publicação poderá ser ativada depois de decidir onde o mapa ficará acessível.
+Base de exploração, ainda sem personagens, construções, estradas, objetivos ou colisões. Requer navegador com WebGL. Não usa bibliotecas ou CDN.
+
+## Publicação
+
+No GitHub Pages, selecione Deploy from a branch, main e /(root). Endereço esperado: https://alvesanderson111.github.io/Teste-mapa/
+
+## Verificação desta versão
+
+Sintaxe JavaScript validada. Testes com contexto WebGL simulado verificaram geometria finita em 16 combinações extremas e preservação do mundo durante entrada, volta e câmera. Esses testes não substituem validação visual na GPU ou teste de toque em aparelho físico.
