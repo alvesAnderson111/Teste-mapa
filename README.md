@@ -27,4 +27,18 @@ Testes do motor: `node test-engine.cjs`. Cobrem orçamento de 10 casas, ausênci
 
 ## Posição livre
 
-A seleção e a colisão usam coordenadas contínuas. A prévia mostra as caixas somente durante a seleção; o chão não tem linhas de grade. Os salvamentos da versão anterior são migrados automaticamente, mantendo posições, variantes e dinheiro. A rotação dos edifícios permanece fixa nesta versão.
+A seleção e a colisão usam coordenadas contínuas. A prévia mostra as caixas somente durante a seleção; o chão não tem linhas de grade. Os salvamentos da versão anterior são migrados automaticamente, mantendo posições, variantes e dinheiro. A rotação é livre quando a opção de alinhamento com a rua está ativa (ângulos em passos de 15°).
+
+## Ruas, avenidas e parques
+
+Escolha Rua ou Avenida e arraste o dedo para desenhar. O traçado é suavizado por duas passagens de Chaikin. A prévia informa preço e conexões. Vias que se encontram ou cruzam compartilham acesso físico; não há tráfego ou simulação de rotas de cidadãos ainda. Pontas próximas se conectam à linha central de uma via existente.
+
+Rua: largura 0,55 unidade e $ 350 por unidade de comprimento. Avenida: largura 1 e $ 650 por unidade. O custo considera o traçado suavizado. Vias e edifícios não podem se sobrepor; cruzamentos entre vias são permitidos.
+
+Parque: desenhe um contorno; ao soltar, o polígono é fechado e suavizado. Custo $ 450 por unidade de área, manutenção $ 12 por unidade de área/mês, arredondados para cima. Árvores e bancos são distribuídos de forma determinística. Contornos que cruzam a si mesmos, prédios, vias ou parques são bloqueados. Não há influência em população/atratividade implementada ainda.
+
+A manutenção é cobrada a cada mês. Se o saldo acabar, o restante é registrado como manutenção pendente; o saldo não fica negativo. Ainda não há renda tributária ou cobrança automática de pendências. Pause o calendário para planejar sem avançar meses.
+
+Alinhar prédios à rua próxima é opcional: ajusta a posição, orientação e recuo. Colisões usam caixas conservadoras que cobrem o prédio rotacionado. Salvamentos anteriores são migrados para versão 3.
+
+Verificações: `node test-engine.cjs` e `node test-infrastructure.cjs`.
