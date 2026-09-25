@@ -21,7 +21,29 @@ const all=state.buildings.map(b=>({...b,ghost:false}));if(selection){const q=Rul
 all.sort((a,b)=>(a.x+a.y)-(b.x+b.y)||a.x-b.x);for(const b of all){const p=project(b.x+.5,b.y+.5),img=sprites[b.type]?.[b.variant];if(!img||p.x< -tile||p.x>width+tile||p.y< -tile||p.y>height+tile*1.4)continue;ctx.globalAlpha=b.ghost?.43:1;ctx.drawImage(img,p.x-tile/2,p.y-tile, tile,tile*1.3);}ctx.globalAlpha=1;}
 function makeSprite(model,categoryColor){const xs=model.v.map(p=>p[0]),ys=model.v.map(p=>p[1]),zs=model.v.map(p=>p[2]),mx=(Math.max(...xs)+Math.min(...xs))/2,my=(Math.max(...ys)+Math.min(...ys))/2,mz=Math.min(...zs),scale=.88/Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));const v=model.v.map(p=>[(p[0]-mx)*scale,-(p[1]-my)*scale,(p[2]-mz)*scale]);const img=document.createElement('canvas');img.width=400;img.height=520;const c=img.getContext('2d');c.scale(2,2);
 const faces=model.f.map(f=>{const p=f.slice(0,3).map(i=>v[i]);return {p,color:f[3],depth:p.reduce((n,p)=>n+p[0]+p[1]+p[2]*1.4,0)/3};}).sort((a,b)=>a.depth-b.depth);
-for(const f of faces){const [a,b,d]=f.p,u=b.map((v,i)=>v-a[i]),w=d.map((v,i)=>v-a[i]),n=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]],len=Math.hypot(...n)||1,light=.76+.24*Math.abs((n[0]*-.4+n[1]*-.6+n[2]*.7)/len);const rgb=categoryColor.match(/\w\w/g).map(v=>Math.round(parseInt(v,16)*light));c.beginPath();f.p.forEach((p,i)=>{const x=100+(p[0]-p[1])*100,y=200+(p[0]+p[1])*50-p[2]*100;i?c.lineTo(x,y):c.moveTo(x,y);});c.closePath();c.fillStyle=`rgb(${rgb.join(',')})`;c.fill();}return img;}
+
+// Keep flat category colors while separating the slab, roof and facade details.
+const tint=categoryColor.match(/\w\w/g).map(v=>parseInt(v,16));
+const darkDetails=new Set(['#40515a','#9ab7c2','#795641','#646b6d']);
+const roofs=new Set(['#6c5445','#8a6550','#596064']);
+for(const f of faces){
+ const [a,b,d]=f.p,u=b.map((v,i)=>v-a[i]),w=d.map((v,i)=>v-a[i]);
+ let n=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]];
+ // The reflected Y coordinate changes winding. Orient the two-sided face toward the camera.
+ if(n[0]+n[1]+n[2]*1.4<0)n=n.map(v=>-v);
+ const len=Math.hypot(...n)||1;
+ const light=.48+.52*Math.max(0,(-n[0]*.6+n[1]*.35+n[2]*.72)/len);
+ const slab=f.p.every(p=>p[2]<=.365*scale);
+ let base=tint;
+ if(slab)base=tint.map(v=>Math.round(210+v*.10));
+ else if(darkDetails.has(f.color))base=tint.map(v=>v*.36+12);
+ else if(roofs.has(f.color))base=tint.map(v=>v*.78);
+ else if(f.color==='#e7e3d8')base=tint.map(v=>v*.65+255*.35);
+ const rgb=base.map(v=>Math.max(0,Math.min(255,Math.round(v*light))));
+ c.beginPath();f.p.forEach((p,i)=>{const x=100+(p[0]-p[1])*100,y=200+(p[0]+p[1])*50-p[2]*100;i?c.lineTo(x,y):c.moveTo(x,y);});
+ c.closePath();c.fillStyle=`rgb(${rgb.join(',')})`;c.fill();
+}
+return img;}
 function update(){const q=selection?Rules.quote(state,type,selection.a,selection.b):null;$('balance').textContent=short(state.money);$('balance').title=exact(state.money);$('count').textContent=state.buildings.length+' construções';$('quote').hidden=!selection;
 if(q){$('summary').textContent=q.cells.length+' '+(type==='res'?'residências':type==='com'?'comércios':'indústrias');$('total').textContent=short(q.total);$('total').title=exact(q.total);$('breakdown').textContent=`Construções ${exact(q.base)} + terreno (${Rules.types[type].tax*100}%) ${exact(q.tax)}. `+(q.blocked?`${q.blocked} lote(s) ocupado(s) ignorado(s). `:'')+(q.total>state.money?'Saldo insuficiente: selecione uma área menor.':!q.cells.length?'Nenhum lote livre nesta área.':`Saldo após construir: ${short(state.money-q.total)}.`);$('breakdown').classList.toggle('error',q.total>state.money||!q.cells.length);$('confirm').disabled=!ready||!q.cells.length||q.total>state.money;$('confirm').textContent='Construir · '+short(q.total);}
 $('hint').textContent=panMode?'Arraste para mover · pinça para aproximar':'Arraste para selecionar lotes · 2 dedos movem o mapa';schedule();}
