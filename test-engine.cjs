@@ -1,0 +1,8 @@
+const assert=require('node:assert/strict'),R=require('./engine.js');
+let s=R.fresh();let q=R.quote(s,'res',{x:0,y:0},{x:9,y:0});assert.equal(q.base,50000);assert.equal(q.tax,750);assert.equal(q.total,50750);R.build(s,'res',{x:0,y:0},{x:9,y:0},()=>.99);assert.equal(s.money,49250);assert.equal(s.buildings.length,10);assert(s.buildings.every(b=>b.variant===2));
+const snap=JSON.stringify(s);assert.equal(R.build(s,'com',{x:0,y:0},{x:9,y:0}),false);assert.equal(JSON.stringify(s),snap);assert.equal(R.build(s,'ind',{x:0,y:1},{x:10,y:1}),false);assert.equal(JSON.stringify(s),snap);
+q=R.build(s,'com',{x:9,y:0},{x:10,y:0},()=>0);assert.equal(q.blocked,1);assert.equal(q.total,8200);assert.equal(s.money,41050);assert.equal(s.buildings.length,11);assert(R.restore(JSON.parse(JSON.stringify(s))));
+const corrupt=JSON.parse(JSON.stringify(s));corrupt.buildings.push(corrupt.buildings[0]);assert.equal(R.restore(corrupt),null);assert.equal(R.restore({...s,money:100000}),null);
+s=R.fresh();q=R.quote(s,'ind',{x:2,y:2},{x:0,y:0});assert.equal(q.cells.length,9);assert.equal(q.total,112320);q=R.quote(s,'res',{x:-3,y:-4},{x:1,y:1});assert.equal(q.cells.length,4);q=R.quote(s,'res',{x:31,y:31},{x:34,y:34});assert.equal(q.cells.length,1);
+for(const [i,t] of ['res','com','ind'].entries()){s=R.fresh();R.build(s,t,{x:0,y:0},{x:2,y:0},(()=>{let n=0;return ()=>n++/3;})());assert.deepEqual(s.buildings.map(b=>b.variant),[0,1,2]);assert(R.restore(s));}
+console.log('PASS: 10 homes = 50,750; blocked lots; insufficient funds; atomic debit; mixed selection; bounds; reversed drag; 3 variants/category; persistence validation.');
