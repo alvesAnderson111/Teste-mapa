@@ -4,7 +4,7 @@ let q=R.quote(s,'res',p(2.137,4.283),p(2.137,4.283));assert.equal(q.cells.length
 R.build(s,'res',p(2.137,4.283),p(2.137,4.283),()=>.99);assert.equal(s.money,94925);assert.equal(s.buildings[0].variant,2);
 const before=JSON.stringify(s);assert.equal(R.build(s,'com',p(2.4,4.5),p(2.4,4.5)),false);assert.equal(JSON.stringify(s),before);
 q=R.build(s,'com',p(3.09,4.283),p(3.09,4.283),()=>0);assert.equal(q.total,8200);assert(!R.overlaps(s.buildings[0],s.buildings[1]));assert(R.restore(JSON.parse(JSON.stringify(s))));
-const saved={version:1,money:89850,buildings:[{x:1,y:2,type:'res',variant:0},{x:2,y:2,type:'res',variant:1}]};const migrated=R.restore(saved);assert.equal(migrated.version,2);assert.deepEqual(migrated.buildings,saved.buildings);assert.equal(migrated.money,saved.money);
+const saved={version:1,money:89850,buildings:[{x:1,y:2,type:'res',variant:0},{x:2,y:2,type:'res',variant:1}]};const migrated=R.restore(saved);assert.equal(migrated.version,3);assert.deepEqual(migrated.buildings.map(({angle,...b})=>b),saved.buildings);assert.equal(migrated.money,saved.money);
 assert.equal(R.restore({...s,money:100000}),null);assert.equal(R.restore({...s,buildings:[...s.buildings,s.buildings[0]]}),null);
 s=R.fresh();q=R.quote(s,'res',p(.7,1.1),p(.7+9*R.spacing,1.1));assert.equal(q.cells.length,10);assert.equal(q.total,50750);assert.deepEqual(q,R.quote(s,'res',p(.7+9*R.spacing,1.1),p(.7,1.1)));
 R.build(s,'res',p(.7,1.1),p(.7+9*R.spacing,1.1));assert.equal(s.money,49250);for(let i=0;i<s.buildings.length;i++)for(let j=i+1;j<s.buildings.length;j++)assert(!R.overlaps(s.buildings[i],s.buildings[j]));
