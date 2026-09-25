@@ -1,8 +1,14 @@
 const assert=require('node:assert/strict'),R=require('./engine.js');
-let s=R.fresh();let q=R.quote(s,'res',{x:0,y:0},{x:9,y:0});assert.equal(q.base,50000);assert.equal(q.tax,750);assert.equal(q.total,50750);R.build(s,'res',{x:0,y:0},{x:9,y:0},()=>.99);assert.equal(s.money,49250);assert.equal(s.buildings.length,10);assert(s.buildings.every(b=>b.variant===2));
-const snap=JSON.stringify(s);assert.equal(R.build(s,'com',{x:0,y:0},{x:9,y:0}),false);assert.equal(JSON.stringify(s),snap);assert.equal(R.build(s,'ind',{x:0,y:1},{x:10,y:1}),false);assert.equal(JSON.stringify(s),snap);
-q=R.build(s,'com',{x:9,y:0},{x:10,y:0},()=>0);assert.equal(q.blocked,1);assert.equal(q.total,8200);assert.equal(s.money,41050);assert.equal(s.buildings.length,11);assert(R.restore(JSON.parse(JSON.stringify(s))));
-const corrupt=JSON.parse(JSON.stringify(s));corrupt.buildings.push(corrupt.buildings[0]);assert.equal(R.restore(corrupt),null);assert.equal(R.restore({...s,money:100000}),null);
-s=R.fresh();q=R.quote(s,'ind',{x:2,y:2},{x:0,y:0});assert.equal(q.cells.length,9);assert.equal(q.total,112320);q=R.quote(s,'res',{x:-3,y:-4},{x:1,y:1});assert.equal(q.cells.length,4);q=R.quote(s,'res',{x:31,y:31},{x:34,y:34});assert.equal(q.cells.length,1);
-for(const [i,t] of ['res','com','ind'].entries()){s=R.fresh();R.build(s,t,{x:0,y:0},{x:2,y:0},(()=>{let n=0;return ()=>n++/3;})());assert.deepEqual(s.buildings.map(b=>b.variant),[0,1,2]);assert(R.restore(s));}
-console.log('PASS: 10 homes = 50,750; blocked lots; insufficient funds; atomic debit; mixed selection; bounds; reversed drag; 3 variants/category; persistence validation.');
+const p=(x,y)=>({x,y});let s=R.fresh();
+let q=R.quote(s,'res',p(2.137,4.283),p(2.137,4.283));assert.equal(q.cells.length,1);assert.equal(q.cells[0].x,1.637);assert(Math.abs(q.cells[0].y-3.783)<1e-10);assert.equal(q.total,5075);
+R.build(s,'res',p(2.137,4.283),p(2.137,4.283),()=>.99);assert.equal(s.money,94925);assert.equal(s.buildings[0].variant,2);
+const before=JSON.stringify(s);assert.equal(R.build(s,'com',p(2.4,4.5),p(2.4,4.5)),false);assert.equal(JSON.stringify(s),before);
+q=R.build(s,'com',p(3.09,4.283),p(3.09,4.283),()=>0);assert.equal(q.total,8200);assert(!R.overlaps(s.buildings[0],s.buildings[1]));assert(R.restore(JSON.parse(JSON.stringify(s))));
+const saved={version:1,money:89850,buildings:[{x:1,y:2,type:'res',variant:0},{x:2,y:2,type:'res',variant:1}]};const migrated=R.restore(saved);assert.equal(migrated.version,2);assert.deepEqual(migrated.buildings,saved.buildings);assert.equal(migrated.money,saved.money);
+assert.equal(R.restore({...s,money:100000}),null);assert.equal(R.restore({...s,buildings:[...s.buildings,s.buildings[0]]}),null);
+s=R.fresh();q=R.quote(s,'res',p(.7,1.1),p(.7+9*R.spacing,1.1));assert.equal(q.cells.length,10);assert.equal(q.total,50750);assert.deepEqual(q,R.quote(s,'res',p(.7+9*R.spacing,1.1),p(.7,1.1)));
+R.build(s,'res',p(.7,1.1),p(.7+9*R.spacing,1.1));assert.equal(s.money,49250);for(let i=0;i<s.buildings.length;i++)for(let j=i+1;j<s.buildings.length;j++)assert(!R.overlaps(s.buildings[i],s.buildings[j]));
+const prior=JSON.stringify(s);assert.equal(R.build(s,'ind',p(4,7),p(15,20)),false);assert.equal(JSON.stringify(s),prior);
+for(const point of [p(.1,.1),p(31.9,31.9),p(-1,8),p(Infinity,2)])assert.equal(R.quote(R.fresh(),'res',point,point).cells.length,0);
+assert.equal(R.quote(R.fresh(),'res',p(.5,.5),p(.5,.5)).cells.length,1);assert.equal(R.quote(R.fresh(),'res',p(31.5,31.5),p(31.5,31.5)).cells.length,1);
+console.log('PASS: fractional placement, box collision, neighboring free placement, area packing, reverse drag, budget, bounds, persistence and v1 migration.');
