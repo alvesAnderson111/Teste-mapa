@@ -74,10 +74,10 @@ const at=(x,z)=>[x-HALF,heights[z][x],z-HALF];
 for(let z=0;z<N;z++)for(let x=0;x<N;x++){let h=(heights[z][x]+heights[z+1][x]+heights[z][x+1]+heights[z+1][x+1])/4;let c=h<.55?[.80,.72,.49]:h>4.5?[.52,.57,.53]:h>2.8?[.39,.53,.36]:[.44,.64,.36];const shade=.94+hash(x+70,z)*.12;c=c.map(v=>v*shade);quad(at(x,z),at(x,z+1),at(x+1,z+1),at(x+1,z),c);
 if(h>.8&&h<4&&hash(x+190,z)>.90&&x%2===0&&z%2===0){let yy=Math.max(heights[z][x],heights[z+1][x],heights[z][x+1],heights[z+1][x+1]);box(x-HALF+.5,yy-.5,z-HALF+.5,.16,1,.16,[.38,.29,.2]);cone(x-HALF+.5,yy+.2,z-HALF+.5,.65,1.65+hash(x,z),[.16,.36,.25]);}}
 // Flat sea intersects the carved river bed; all water shares one level.
-quad([-HALF,0,-HALF],[-HALF,0,HALF],[HALF,0,HALF],[HALF,0,-HALF],[.22,.57,.66]);
+for(let z=-HALF;z<HALF;z++)for(let x=-HALF;x<HALF;x++)quad([x,0,z],[x,0,z+1],[x+1,0,z+1],[x+1,0,z],[.22,.57,.66]);
 for(let i=0;i<N;i++){quad(at(i,0),[i-HALF,-8,-HALF],[i+1-HALF,-8,-HALF],at(i+1,0),[.38,.31,.23]);quad(at(i,N),at(i+1,N),[i+1-HALF,-8,HALF],[i-HALF,-8,HALF],[.38,.31,.23]);quad(at(0,i),at(0,i+1),[-HALF,-8,i+1-HALF],[-HALF,-8,i-HALF],[.38,.31,.23]);quad(at(N,i),[HALF,-8,i-HALF],[HALF,-8,i+1-HALF],at(N,i+1),[.38,.31,.23]);}
 // Close the water-facing edge of the island pedestal.
-box(0,-8,0,N,7.95,N,[.24,.35,.34]);
+for(let i=-HALF;i<HALF;i++){const c=[.24,.35,.34];quad([i,-8,-HALF],[i+1,-8,-HALF],[i+1,0,-HALF],[i,0,-HALF],c);quad([i,-8,HALF],[i,0,HALF],[i+1,0,HALF],[i+1,-8,HALF],c);quad([-HALF,-8,i],[-HALF,0,i],[-HALF,0,i+1],[-HALF,-8,i+1],c);quad([HALF,-8,i],[HALF,-8,i+1],[HALF,0,i+1],[HALF,0,i],c);}
 count=vertices.length/6;gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);
 $('seedLabel').textContent='SEMENTE '+seed;$('gameSeed').textContent=seed;$('mapName').textContent=({mixed:'Terras do Horizonte',islands:'Ilhas Esmeralda',valley:'Vale do Rio Claro',coast:'Costa dos Ventos'})[type];$('mapDescription').textContent='Mundo 3D pronto. Entre para explorar esta paisagem.';canvas.dataset.seed=seed;canvas.dataset.vertices=count;draw();}
 function basis(){const c=Math.cos(angle),s=Math.sin(angle);return {r:[c,0,-s],u:[s*.577350269,.816496581,c*.577350269],e:[s*.816496581,-.577350269,c*.816496581]};}
