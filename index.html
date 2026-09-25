@@ -33,8 +33,22 @@ canvas{touch-action:none}.gamebar{display:none}.cameraTools{position:absolute;to
 'use strict';
 const $=id=>document.getElementById(id), canvas=$('map');
 let gl;
-try { gl=canvas.getContext('webgl',{antialias:true,alpha:false}); if(!gl)throw Error('WebGL indisponível'); start(); }
+try { gl=canvas.getContext('webgl',{antialias:true,alpha:false}); if(!gl)gl=softwareRenderer(canvas); start(); }
 catch(e){$('status').textContent='Não foi possível iniciar o mapa 3D neste navegador. Tente abrir no Chrome ou Safari atualizado. '+e.message;$('enter').disabled=true;$('generate').disabled=true;}
+// Same 3D mesh and camera, painted in depth order when WebGL is unavailable.
+function softwareRenderer(canvas){
+ const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas indisponível');let data,uniforms={};
+ const noop=()=>{};
+ return {createShader:()=>({}),shaderSource:noop,compileShader:noop,getShaderParameter:()=>true,createProgram:()=>({}),attachShader:noop,linkProgram:noop,getProgramParameter:()=>true,useProgram:noop,createBuffer:()=>({}),bindBuffer:noop,getAttribLocation:()=>0,enableVertexAttribArray:noop,vertexAttribPointer:noop,getUniformLocation:(_,name)=>name,enable:noop,clearColor:noop,viewport:noop,clear:noop,
+ bufferData:(_,value)=>data=value,uniform3fv:(name,v)=>uniforms[name]=v,uniform2f:(name,x,y)=>uniforms[name]=[x,y],
+ drawArrays(){
+  if(!data)return;const {right,up,eye,target,extent}=uniforms;let faces=[];const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  for(let i=0;i<data.length;i+=18){let pts=[],depth=0;for(let j=0;j<3;j++){let k=i+j*6,p=[data[k]-target[0],data[k+1]-target[1],data[k+2]-target[2]];pts.push([(dot(p,right)/extent[0]+1)*canvas.width/2,(1-dot(p,up)/extent[1])*canvas.height/2]);depth+=dot(p,eye);}faces.push({pts,depth,col:`rgb(${Math.round(data[i+3]*255)},${Math.round(data[i+4]*255)},${Math.round(data[i+5]*255)})`});}
+  faces.sort((a,b)=>a.depth-b.depth);ctx.fillStyle='#112b34';ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(const f of faces){ctx.beginPath();ctx.moveTo(...f.pts[0]);ctx.lineTo(...f.pts[1]);ctx.lineTo(...f.pts[2]);ctx.closePath();ctx.fillStyle=f.col;ctx.fill();}
+ }
+ };
+}
 function start(){
 const N=56, HALF=N/2;
 let seed=0, vertices=[], heights=[], angle=Math.PI/4, span=76, target=[0,0,0], playing=false, count=0;
