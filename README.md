@@ -14,7 +14,7 @@ Arraste para mover a câmera, use dois dedos para zoom ou os botões +/−. ↻ 
 
 Terreno tridimensional, mar, leito de rio, areia, grama, rochas e árvores de poucos polígonos. A semente permanece ao entrar, voltar e mover a câmera. As opções só são aplicadas ao gerar novamente. Recarregar a página gera um novo mundo; ainda não há salvamento.
 
-Base de exploração, ainda sem personagens, construções, estradas, objetivos ou colisões. Requer navegador com WebGL. Não usa bibliotecas ou CDN.
+Base de exploração, ainda sem personagens, construções, estradas, objetivos ou colisões. Usa WebGL quando disponível; em outros navegadores, desenha a mesma geometria 3D com Canvas2D e ordenação de profundidade (pode haver diferenças de sobreposição e desempenho). Não usa bibliotecas ou CDN.
 
 ## Publicação
 
