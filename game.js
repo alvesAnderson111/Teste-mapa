@@ -76,3 +76,28 @@ $('restartConfirm').onclick=()=>{
  tile=72;center();update();$('restartDialog').close();
  notify('Cidade reiniciada. Você tem $ 100k para começar.');
 };
+
+const monthNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+state.clock=Rules.normalizeClock(state.clock);
+function renderClock(){
+ const c=state.clock;
+ $('calendarDate').textContent=monthNames[c.month%12]+' · Ano '+(Math.floor(c.month/12)+1);
+ $('monthProgress').value=c.elapsed;
+ $('clockRate').textContent=c.speed?'1 mês = '+(60/c.speed)+' segundos':'Calendário pausado';
+ document.querySelectorAll('[data-speed]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.speed)===c.speed)));
+}
+let clockLast=performance.now(),clockUnsaved=0,clockSaveWarning=false;
+function persistClock(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){if(!clockSaveWarning){notify('Não foi possível salvar o calendário neste navegador.');clockSaveWarning=true;}}}
+function tickClock(){
+ const now=performance.now(),delta=now-clockLast;clockLast=now;
+ if(document.hidden||!ready||$('restartDialog').open||delta>2000)return;
+ const crossed=Rules.advanceClock(state,delta);clockUnsaved+=delta;renderClock();
+ if(crossed)notify(monthNames[state.clock.month%12]+' · Ano '+(Math.floor(state.clock.month/12)+1));
+ if(crossed||clockUnsaved>=5000){persistClock();clockUnsaved=0;}
+}
+document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{tickClock();state.clock.speed=Number(b.dataset.speed);renderClock();persistClock();});
+document.addEventListener('visibilitychange',()=>{clockLast=performance.now();if(document.hidden)persistClock();});
+window.addEventListener('pagehide',persistClock);
+const resetCity=$('restartConfirm').onclick;
+$('restartConfirm').onclick=()=>{resetCity();clockLast=performance.now();clockUnsaved=0;renderClock();};
+renderClock();setInterval(tickClock,250);
